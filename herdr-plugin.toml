@@ -1,0 +1,21 @@
+id = "houz42.whichkey"
+name = "Which-Key"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "which-key.nvim style key hierarchy popup for the herdr prefix key"
+platforms = ["linux", "macos"]
+
+# Bound to bare f12 via [[keys.command]] type = "plugin_action" in config.toml.
+# The action runs detached (no tty), so it only opens the pane entrypoint.
+[[actions]]
+id = "open"
+title = "Show prefix key popup"
+command = ["python3", "open_popup.py"]
+
+[[panes]]
+id = "whichkey"
+title = "Prefix keys"
+placement = "popup"
+width = "80%"
+height = 16
+command = ["python3", "whichkey.py"]
