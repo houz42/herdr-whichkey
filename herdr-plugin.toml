@@ -12,6 +12,12 @@ id = "open"
 title = "Show prefix key popup"
 command = ["python3", "open_popup.py"]
 
+# One-shot: bind f12 (and move the native prefix off it) in config.toml.
+[[actions]]
+id = "setup"
+title = "Bind f12 to the which-key popup"
+command = ["python3", "setup.py"]
+
 [[panes]]
 id = "whichkey"
 title = "Prefix keys"

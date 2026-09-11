@@ -38,8 +38,21 @@ herdr plugin install houz42/herdr-whichkey
 
 ## Setup: bind it to your prefix key
 
-Plugins cannot bind keys themselves, so add this to
-`~/.config/herdr/config.toml`, at the **end** of the `[keys]` section
+Plugins cannot bind keys themselves, so one config edit is needed. One-shot:
+
+```sh
+herdr plugin action invoke houz42.whichkey.setup
+```
+
+This backs up `~/.config/herdr/config.toml`, binds `f12` to the popup, moves
+the native prefix to `ctrl+f12` if it was `f12`, and reloads the server. It
+is idempotent and refuses to clobber an existing `f12` binding.
+
+Your other `prefix+...` keybindings do **not** need to change — the popup has
+its own mnemonic key tree and dispatches through the CLI; everything it cannot
+dispatch stays on the native prefix.
+
+Or edit manually — add this at the **end** of the `[keys]` section
 (everything after an array-of-tables header belongs to it):
 
 ```toml
