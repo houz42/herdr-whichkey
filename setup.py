@@ -23,7 +23,14 @@ import time
 from pathlib import Path
 
 CONFIG = Path(os.environ.get("HERDR_CONFIG", Path.home() / ".config" / "herdr" / "config.toml"))
-HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
+# HERDR_BIN_PATH can be a stale/deleted binary path (frozen at server start);
+# fall back to PATH lookup.
+_env_herdr = os.environ.get("HERDR_BIN_PATH")
+HERDR = (
+    _env_herdr
+    if _env_herdr and os.access(_env_herdr, os.X_OK)
+    else shutil.which("herdr") or _env_herdr or "herdr"
+)
 TRIGGER = "f12"
 FALLBACK_PREFIX = "ctrl+f12"
 

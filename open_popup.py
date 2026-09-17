@@ -16,6 +16,7 @@ to the popup process as HERDR_WHICHKEY_CTX.
 """
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -23,7 +24,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import whichkey  # noqa: E402
 
-HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
+# See whichkey.py: HERDR_BIN_PATH can be a stale/deleted binary path.
+_env_herdr = os.environ.get("HERDR_BIN_PATH")
+HERDR = (
+    _env_herdr
+    if _env_herdr and os.access(_env_herdr, os.X_OK)
+    else shutil.which("herdr") or _env_herdr or "herdr"
+)
 PARAMS = {"plugin_id": "houz42.whichkey", "entrypoint": "whichkey"}
 
 ctx = os.environ.get("HERDR_PLUGIN_CONTEXT_JSON", "")

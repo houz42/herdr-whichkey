@@ -23,7 +23,15 @@ CONFIG_DIR = os.environ.get("HERDR_PLUGIN_CONFIG_DIR") or "/tmp"
 STATE_DIR = os.environ.get("HERDR_PLUGIN_STATE_DIR") or "/tmp"
 KEYS_PATH = os.path.join(CONFIG_DIR, "keys.json")
 LOG_PATH = os.path.join(STATE_DIR, "whichkey.log")
-HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
+# HERDR_BIN_PATH is frozen at server start and can point at a since-removed
+# binary (package-manager migration, pruned versioned install); fall back to
+# PATH lookup when it is stale.
+_env_herdr = os.environ.get("HERDR_BIN_PATH")
+HERDR = (
+    _env_herdr
+    if _env_herdr and os.access(_env_herdr, os.X_OK)
+    else shutil.which("herdr") or _env_herdr or "herdr"
+)
 
 
 def log(msg):
