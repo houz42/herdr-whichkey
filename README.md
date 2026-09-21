@@ -13,16 +13,18 @@ f12 › +tabs — which-key for herdr
   x             Close tab
   ]             Next tab
   [             Previous tab
-  }             Move tab right
-  {             Move tab left
+  l             Move tab right
+  h             Move tab left
+  j             Move tab to next workspace
+  k             Move tab to prev workspace
   1..9          Switch to tab 1-9
 ```
 
 - Hierarchical groups: `p` panes, `t` tabs, `w` workspaces, `s` session
 - Mnemonic leaf keys: `n` new, `x` close, `r` rename/reload, `s`/`v` split
-  down/right, `]`/`[` next/previous, `}`/`{` move right/left (`+workspaces`
-  moves the whole tab — all panes — to the next/previous workspace and
-  follows it)
+  down/right, `]`/`[` next/previous, `h`/`l` move tab left/right within the
+  workspace, `j`/`k` move the whole tab — all panes — to the next/previous
+  workspace (focus follows it)
 - Breadcrumb header, `bksp` climbs up, `esc` closes
 - Popup is sized to its content on every open
 - Commands with no Herdr CLI/socket equivalent (help, detach, copy mode,

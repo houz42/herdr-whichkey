@@ -1,6 +1,6 @@
 id = "houz42.whichkey"
 name = "Which-Key"
-version = "0.1.2"
+version = "0.1.3"
 min_herdr_version = "0.9.0"
 description = "which-key.nvim style key hierarchy popup for the herdr prefix key"
 platforms = ["linux", "macos"]

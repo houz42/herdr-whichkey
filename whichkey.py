@@ -297,7 +297,8 @@ ACTIONS = {
 # group keys. A list value is a group (descend); a string value is an action
 # name from ACTIONS; None is native-prefix only.
 # Key style: n=new, x=close, r=rename/reload, s/v=split down/right (vim),
-# ]/[=next/previous. Native-only leaves keep their REAL native chords as keys
+# ]/[=next/previous, h/l=move left/right, j/k=move tab to prev/next
+# workspace (vim). Native-only leaves keep their REAL native chords as keys
 # so the status hint teaches the actual ctrl+f12 chord.
 DEFAULT_TREE = [
     ["p", "+panes", [
@@ -314,8 +315,10 @@ DEFAULT_TREE = [
         ["x", "Close tab", "close_tab"],
         ["]", "Next tab", "next_tab"],
         ["[", "Previous tab", "previous_tab"],
-        ["}", "Move tab right", "move_tab_right"],
-        ["{", "Move tab left", "move_tab_left"],
+        ["l", "Move tab right", "move_tab_right"],
+        ["h", "Move tab left", "move_tab_left"],
+        ["j", "Move tab to next workspace", "move_tab_next_workspace"],
+        ["k", "Move tab to prev workspace", "move_tab_prev_workspace"],
         ["1..9", "Switch to tab 1-9", "switch_tab"],
     ]],
     ["w", "+workspaces", [
@@ -324,8 +327,6 @@ DEFAULT_TREE = [
         ["x", "Close workspace", "close_workspace"],
         ["]", "Next workspace", "next_workspace"],
         ["[", "Previous workspace", "previous_workspace"],
-        ["}", "Move tab to next workspace", "move_tab_next_workspace"],
-        ["{", "Move tab to prev workspace", "move_tab_prev_workspace"],
     ]],
     ["s", "+session", [
         ["r", "Reload config", "reload_config"],
