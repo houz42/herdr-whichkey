@@ -15,6 +15,7 @@ import json
 import os
 import select
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -174,8 +175,95 @@ def _ws_relative(ctx, delta):
     return ["workspace", "focus", wss[j]["workspace_id"]]
 
 
+def _socket_call(method, params):
+    """One NDJSON request against the session socket (methods with no CLI)."""
+    path = os.environ.get("HERDR_SOCKET_PATH") or os.path.expanduser(
+        "~/.config/herdr/herdr.sock"
+    )
+    log(f"rpc: {method} {params}")
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(10)
+    try:
+        s.connect(path)
+        f = s.makefile("rw")
+        f.write(json.dumps({"id": "whichkey", "method": method, "params": params}) + "\n")
+        f.flush()
+        resp = json.loads(f.readline())
+    finally:
+        s.close()
+    if resp.get("error"):
+        raise RuntimeError(resp["error"].get("message") or str(resp["error"]))
+    return resp.get("result", {})
+
+
+def _tab_reorder(ctx, delta):
+    # tab.move is socket-only. insert_index is the PRE-REMOVAL slot the tab is
+    # inserted before (verified on 0.9.0: moving idx1 with insert_index=2 is a
+    # no-op), so right = idx+2, left = idx-1; insert_index=len is the valid
+    # append slot.
+    argv = ["tab", "list"] + (["--workspace", _ws(ctx)] if _ws(ctx) else [])
+    tabs = cli_json(argv)["tabs"]
+    idx = next((i for i, t in enumerate(tabs) if t["tab_id"] == _tab(ctx)), None)
+    if idx is None:
+        idx = next((i for i, t in enumerate(tabs) if t.get("focused")), 0)
+    if delta < 0:
+        if idx == 0:
+            raise RuntimeError("already leftmost tab")
+        insert = idx - 1
+    else:
+        if idx >= len(tabs) - 1:
+            raise RuntimeError("already rightmost tab")
+        insert = idx + 2
+    _socket_call("tab.move", {"tab_id": tabs[idx]["tab_id"], "insert_index": insert})
+
+
+def _move_tab_to_ws(ctx, delta):
+    wss = cli_json(["workspace", "list"])["workspaces"]
+    idx = next((i for i, w in enumerate(wss) if w["workspace_id"] == _ws(ctx)), None)
+    if idx is None:
+        idx = next((i for i, w in enumerate(wss) if w.get("focused")), 0)
+    j = idx + delta
+    if j < 0:
+        raise RuntimeError("already in first workspace")
+    if j >= len(wss):
+        raise RuntimeError("already in last workspace")
+    target = wss[j]["workspace_id"]
+    tab = _tab(ctx)
+    if not tab:
+        raise RuntimeError("no current tab")
+    tabs = cli_json(["tab", "list", "--workspace", _ws(ctx)])["tabs"]
+    label = next((t["label"] for t in tabs if t["tab_id"] == tab), None)
+    panes = [p["pane_id"] for p in cli_json(["pane", "list"])["panes"]
+             if p["tab_id"] == tab]
+    if not panes:
+        raise RuntimeError("tab has no panes")
+    # No tab-level cross-workspace move exists (tab.move is reorder-only), so
+    # move pane by pane: the first pane spawns the target tab, the rest join
+    # as right splits (split topology is not preserved). Pane ids change
+    # across workspaces; the tab label does not survive unless carried.
+    # Focus follows the tab into the neighbor workspace.
+    argv = ["pane", "move", panes[0], "--new-tab", "--workspace", target, "--focus"]
+    if label:
+        argv += ["--label", label]
+    rc, out, err = run_herdr(argv)
+    if rc != 0:
+        raise RuntimeError(err.strip() or f"pane move exited {rc}")
+    new_tab = (
+        json.loads(out)["result"]["move_result"].get("created_tab", {}).get("tab_id")
+    )
+    for p in panes[1:]:
+        argv = ["pane", "move", p, "--no-focus"]
+        if new_tab:
+            argv += ["--tab", new_tab, "--split", "right"]
+        else:
+            argv += ["--new-tab", "--workspace", target]
+        rc, _, err = run_herdr(argv)
+        if rc != 0:
+            raise RuntimeError(err.strip() or f"pane move exited {rc}")
+
+
 # action: ("argv", fn(ctx)->argv) | ("prompt", prompt, fn(ctx,text)->argv)
-#       | ("digit",)              | None (native prefix only)
+#       | ("run", fn(ctx))        | ("digit",) | None (native-prefix only)
 ACTIONS = {
     "split_horizontal": ("argv", lambda c: _split(c, "down")),
     "split_vertical":   ("argv", lambda c: _split(c, "right")),
@@ -194,6 +282,10 @@ ACTIONS = {
     "close_workspace":  ("argv", lambda c: ["workspace", "close", _ws(c)]),
     "previous_workspace": ("argv", lambda c: _ws_relative(c, -1)),
     "next_workspace":     ("argv", lambda c: _ws_relative(c, +1)),
+    "move_tab_left":           ("run", lambda c: _tab_reorder(c, -1)),
+    "move_tab_right":          ("run", lambda c: _tab_reorder(c, +1)),
+    "move_tab_prev_workspace": ("run", lambda c: _move_tab_to_ws(c, -1)),
+    "move_tab_next_workspace": ("run", lambda c: _move_tab_to_ws(c, +1)),
     "reload_config":    ("argv", lambda c: ["server", "reload-config"]),
     "help":             None,
     "detach":           None,
@@ -222,6 +314,8 @@ DEFAULT_TREE = [
         ["x", "Close tab", "close_tab"],
         ["]", "Next tab", "next_tab"],
         ["[", "Previous tab", "previous_tab"],
+        ["}", "Move tab right", "move_tab_right"],
+        ["{", "Move tab left", "move_tab_left"],
         ["1..9", "Switch to tab 1-9", "switch_tab"],
     ]],
     ["w", "+workspaces", [
@@ -230,6 +324,8 @@ DEFAULT_TREE = [
         ["x", "Close workspace", "close_workspace"],
         ["]", "Next workspace", "next_workspace"],
         ["[", "Previous workspace", "previous_workspace"],
+        ["}", "Move tab to next workspace", "move_tab_next_workspace"],
+        ["{", "Move tab to prev workspace", "move_tab_prev_workspace"],
     ]],
     ["s", "+session", [
         ["r", "Reload config", "reload_config"],
@@ -479,6 +575,15 @@ def main():
                 if text is None:
                     render(path, node)
                     continue
+            if spec[0] == "run":  # multi-call/socket actions run in-process
+                try:
+                    spec[1](ctx)
+                except Exception as e:  # noqa: BLE001
+                    status = str(e)[:120]
+                    log(f"run error: {e!r}")
+                    render(path, node, status)
+                    continue
+                return  # success: exiting closes the popup
             try:
                 argv = resolve_argv(leaf, ctx, text=text, digit=digit)
             except Exception as e:  # noqa: BLE001
