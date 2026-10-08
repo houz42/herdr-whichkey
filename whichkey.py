@@ -25,14 +25,30 @@ STATE_DIR = os.environ.get("HERDR_PLUGIN_STATE_DIR") or "/tmp"
 KEYS_PATH = os.path.join(CONFIG_DIR, "keys.json")
 LOG_PATH = os.path.join(STATE_DIR, "whichkey.log")
 # HERDR_BIN_PATH is frozen at server start and can point at a since-removed
-# binary (package-manager migration, pruned versioned install); fall back to
-# PATH lookup when it is stale.
-_env_herdr = os.environ.get("HERDR_BIN_PATH")
-HERDR = (
-    _env_herdr
-    if _env_herdr and os.access(_env_herdr, os.X_OK)
-    else shutil.which("herdr") or _env_herdr or "herdr"
-)
+# binary (package-manager migration, pruned versioned install). The inherited
+# PATH is the server process's own and can be just as stale, so a PATH lookup
+# alone is not a sufficient fallback: probe version-stable locations too, and
+# never settle on a path already known to be non-executable.
+def _resolve_herdr():
+    candidates = [
+        os.environ.get("HERDR_BIN_PATH"),
+        shutil.which("herdr"),
+        # The mise "latest" alias and shims survive version upgrades/pruning.
+        "~/.local/share/mise/installs/herdr/latest/herdr",
+        "~/.local/share/mise/shims/herdr",
+        "~/.local/bin/herdr",
+        "/usr/local/bin/herdr",
+        "/opt/homebrew/bin/herdr",
+    ]
+    for path in candidates:
+        if path:
+            path = os.path.expanduser(path)
+            if os.access(path, os.X_OK):
+                return path
+    return "herdr"  # last resort: let execvp search PATH
+
+
+HERDR = _resolve_herdr()
 
 
 def log(msg):
@@ -508,7 +524,7 @@ def resolve_argv(leaf, ctx, text=None, digit=None):
 
 def main():
     env_brief = {k: v[:120] for k, v in os.environ.items() if k.startswith("HERDR")}
-    log(f"start pid={os.getpid()} env={env_brief}")
+    log(f"start pid={os.getpid()} herdr={HERDR} env={env_brief}")
     tree = build_tree(load_tree())
     ctx = resolve_context()
     log(f"ctx resolved: {ctx}")

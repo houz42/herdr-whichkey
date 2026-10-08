@@ -16,7 +16,6 @@ to the popup process as HERDR_WHICHKEY_CTX.
 """
 import json
 import os
-import shutil
 import socket
 import subprocess
 import sys
@@ -24,13 +23,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import whichkey  # noqa: E402
 
-# See whichkey.py: HERDR_BIN_PATH can be a stale/deleted binary path.
-_env_herdr = os.environ.get("HERDR_BIN_PATH")
-HERDR = (
-    _env_herdr
-    if _env_herdr and os.access(_env_herdr, os.X_OK)
-    else shutil.which("herdr") or _env_herdr or "herdr"
-)
+# HERDR_BIN_PATH can be a stale/deleted binary path; resolution lives in
+# whichkey so every entrypoint agrees.
+HERDR = whichkey.HERDR
 PARAMS = {"plugin_id": "houz42.whichkey", "entrypoint": "whichkey"}
 
 ctx = os.environ.get("HERDR_PLUGIN_CONTEXT_JSON", "")
@@ -67,21 +62,26 @@ def open_via_socket():
     return resp
 
 
-try:
-    open_via_socket()
-except Exception as e:  # noqa: BLE001
-    print(f"socket open failed ({e}), falling back to CLI", file=sys.stderr)
-    cmd = [HERDR, "plugin", "pane", "open"]
-    flag = {"plugin_id": "--plugin", "entrypoint": "--entrypoint"}
-    for k, v in PARAMS.items():
-        if k == "env":
-            for ek, ev in v.items():
-                cmd += ["--env", f"{ek}={ev}"]
-        elif k in ("width", "height"):
-            continue  # CLI has no size flags; manifest dims apply
-        else:
-            cmd += [flag[k], str(v)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    sys.stdout.write(result.stdout)
-    sys.stderr.write(result.stderr)
-    sys.exit(result.returncode)
+def main():
+    try:
+        open_via_socket()
+    except Exception as e:  # noqa: BLE001
+        print(f"socket open failed ({e}), falling back to CLI", file=sys.stderr)
+        cmd = [HERDR, "plugin", "pane", "open"]
+        flag = {"plugin_id": "--plugin", "entrypoint": "--entrypoint"}
+        for k, v in PARAMS.items():
+            if k == "env":
+                for ek, ev in v.items():
+                    cmd += ["--env", f"{ek}={ev}"]
+            elif k in ("width", "height"):
+                continue  # CLI has no size flags; manifest dims apply
+            else:
+                cmd += [flag[k], str(v)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        sys.stdout.write(result.stdout)
+        sys.stderr.write(result.stderr)
+        sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()
