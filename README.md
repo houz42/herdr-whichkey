@@ -25,10 +25,10 @@ f12 › +tabs — which-key for herdr
   next/previous, `h`/`l` move tab left/right within the workspace,
   `j`/`k` move the whole tab — all panes — to the next/previous workspace
   (focus follows it)
-- Directional pane splits: `r`/`d`/`u`/`l` split right/down/up/left (pane
-  rename therefore sits on `R`). Herdr 0.9.x only splits right/down
-  natively, so up/left are a split plus a `pane swap`; focus stays on the
-  original pane either way
+- Directional pane splits: `r`/`d`/`u`/`l` split right/down/up/left and
+  focus moves to the new pane (pane rename therefore sits on `R`). Herdr
+  0.9.x only splits right/down natively, so up/left are a split plus a
+  `pane swap`; focus lands on the new pane either way
 - Breadcrumb header, `bksp` climbs up, `esc` closes
 - Popup is sized to its content on every open
 - Commands with no Herdr CLI/socket equivalent (help, detach, copy mode,

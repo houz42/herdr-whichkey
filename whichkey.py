@@ -136,7 +136,7 @@ def _split(ctx, direction):
     argv = ["pane", "split"]
     if _pane(ctx):
         argv += ["--pane", _pane(ctx)]
-    argv += ["--direction", direction]
+    argv += ["--direction", direction, "--focus"]  # focus lands on the new pane
     if _pane_cwd(ctx):
         argv += ["--cwd", _pane_cwd(ctx)]
     return argv
@@ -144,9 +144,10 @@ def _split(ctx, direction):
 
 def _split_swapped(ctx, direction):
     """Split left/up: herdr 0.9.x splits only right/down, so split the
-    opposite direction and then swap the two panes. Passing the ORIGINAL pane
-    as the swap source keeps focus on it (swap focuses the source pane), so
-    focus behavior matches plain right/down splits (verified on 0.9.4)."""
+    opposite direction and then swap the two panes. The split runs --focus,
+    so the new pane is focused; passing the NEW pane as the swap source keeps
+    focus on it (swap focuses the source pane), matching plain right/down
+    splits where focus also lands on the new pane (verified on 0.9.4)."""
     pane = _pane(ctx)
     if not pane:
         raise RuntimeError("no focused pane")
@@ -155,7 +156,7 @@ def _split_swapped(ctx, direction):
         raise RuntimeError(err.strip() or f"pane split exited {rc}")
     new_pane = json.loads(out)["result"]["pane"]["pane_id"]
     rc, _, err = run_herdr(
-        ["pane", "swap", "--source-pane", pane, "--target-pane", new_pane]
+        ["pane", "swap", "--source-pane", new_pane, "--target-pane", pane]
     )
     if rc != 0:
         raise RuntimeError(err.strip() or f"pane swap exited {rc}")
