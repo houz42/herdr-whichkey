@@ -21,10 +21,14 @@ f12 › +tabs — which-key for herdr
 ```
 
 - Hierarchical groups: `p` panes, `t` tabs, `w` workspaces, `s` session
-- Mnemonic leaf keys: `n` new, `x` close, `r` rename/reload, `s`/`v` split
-  down/right, `]`/`[` next/previous, `h`/`l` move tab left/right within the
-  workspace, `j`/`k` move the whole tab — all panes — to the next/previous
-  workspace (focus follows it)
+- Mnemonic leaf keys: `n` new, `x` close, `r` rename/reload, `]`/`[`
+  next/previous, `h`/`l` move tab left/right within the workspace,
+  `j`/`k` move the whole tab — all panes — to the next/previous workspace
+  (focus follows it)
+- Directional pane splits: `r`/`d`/`u`/`l` split right/down/up/left (pane
+  rename therefore sits on `R`). Herdr 0.9.x only splits right/down
+  natively, so up/left are a split plus a `pane swap`; focus stays on the
+  original pane either way
 - Breadcrumb header, `bksp` climbs up, `esc` closes
 - Popup is sized to its content on every open
 - Commands with no Herdr CLI/socket equivalent (help, detach, copy mode,
@@ -88,7 +92,9 @@ prefix (`ctrl+f12`) still serves the greyed-out commands.
 - A leaf key runs the command against the pane/tab/workspace you were focused
   on and closes the popup
 - `bksp` climbs one level, `esc` closes
-- Rename leaves open an inline prompt at the bottom row
+- Rename leaves open an inline prompt at the bottom row (Herdr 0.9.x exposes
+  no API to invoke its native rename frame — `command.invoke` needs opaque
+  client-issued ids — so the prompt is the plugin's own)
 
 ## Customize the keys
 

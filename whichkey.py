@@ -142,6 +142,25 @@ def _split(ctx, direction):
     return argv
 
 
+def _split_swapped(ctx, direction):
+    """Split left/up: herdr 0.9.x splits only right/down, so split the
+    opposite direction and then swap the two panes. Passing the ORIGINAL pane
+    as the swap source keeps focus on it (swap focuses the source pane), so
+    focus behavior matches plain right/down splits (verified on 0.9.4)."""
+    pane = _pane(ctx)
+    if not pane:
+        raise RuntimeError("no focused pane")
+    rc, out, err = run_herdr(_split(ctx, "right" if direction == "left" else "down"))
+    if rc != 0:
+        raise RuntimeError(err.strip() or f"pane split exited {rc}")
+    new_pane = json.loads(out)["result"]["pane"]["pane_id"]
+    rc, _, err = run_herdr(
+        ["pane", "swap", "--source-pane", pane, "--target-pane", new_pane]
+    )
+    if rc != 0:
+        raise RuntimeError(err.strip() or f"pane swap exited {rc}")
+
+
 def _pane_verb(verb):
     def fn(ctx):
         return ["pane", verb, _pane(ctx)] if _pane(ctx) else ["pane", verb]
@@ -283,6 +302,8 @@ def _move_tab_to_ws(ctx, delta):
 ACTIONS = {
     "split_horizontal": ("argv", lambda c: _split(c, "down")),
     "split_vertical":   ("argv", lambda c: _split(c, "right")),
+    "split_up":         ("run", lambda c: _split_swapped(c, "up")),
+    "split_left":       ("run", lambda c: _split_swapped(c, "left")),
     "close_pane":       ("argv", _pane_verb("close")),
     "zoom":             ("argv", _pane_verb("zoom")),
     "rename_pane":      ("prompt", "Rename pane", lambda c, t: ["pane", "rename", _pane(c), t]),
@@ -312,17 +333,20 @@ ACTIONS = {
 # Default key tree: ordered [key, label, value] rows, grouped under mnemonic
 # group keys. A list value is a group (descend); a string value is an action
 # name from ACTIONS; None is native-prefix only.
-# Key style: n=new, x=close, r=rename/reload, s/v=split down/right (vim),
+# Key style: n=new, x=close, r=rename/reload, r/d/u/l=split right/down/up/
+# left in the panes group (pane rename moves to R since r is split right),
 # ]/[=next/previous, h/l=move left/right, j/k=move tab to prev/next
 # workspace (vim). Native-only leaves keep their REAL native chords as keys
 # so the status hint teaches the actual ctrl+f12 chord.
 DEFAULT_TREE = [
     ["p", "+panes", [
-        ["v", "Split pane right", "split_vertical"],
-        ["s", "Split pane down", "split_horizontal"],
+        ["r", "Split pane right", "split_vertical"],
+        ["d", "Split pane down", "split_horizontal"],
+        ["u", "Split pane up", "split_up"],
+        ["l", "Split pane left", "split_left"],
         ["x", "Close pane", "close_pane"],
         ["z", "Zoom pane", "zoom"],
-        ["r", "Rename pane", "rename_pane"],
+        ["R", "Rename pane", "rename_pane"],
         [";", "Last pane", None],
     ]],
     ["t", "+tabs", [
